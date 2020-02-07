@@ -8,6 +8,8 @@ import pyodbc
 import pandas as pd
 import os
 from datetime import datetime
+from io import StringIO
+import boto3
 import time
 
 #class ReportAutomation:
@@ -134,12 +136,17 @@ def agePro_func(sql_conn):
     
     # build report
     ageProfile = pd.merge(perks_c[['customer_id','age_segment']],
-                 age_pro_summ,
+                 tran_summ,
                  how='inner',
                  on='customer_id')
     
     ageProfile_out = ageProfile[['store_currency_code','channel','trans_order_date','division','department','category','age_segment','aud_sales']]
     
+    ageProfile_out = ageProfile_out.groupby(['store_currency_code','channel','trans_order_date','division','department','category','age_segment'])\
+                                   .sum()\
+                                   .reset_index()
+
+
     # date variable
     date_var = datetime.now().strftime("%d-%m-%Y")
     
