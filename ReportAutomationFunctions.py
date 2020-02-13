@@ -130,12 +130,8 @@ def agePro_func(sql_conn):
     tran_summ = sql_conn(age_pro_path, server, db)
     print('transaction file exported')
     
-    # drop irrelevant rows
-    drop = ['Missing']    
-    perks_c = perks[~perks['age_band'].isin(drop)]
-    
     # build report
-    ageProfile = pd.merge(perks_c[['customer_id','age_segment']],
+    ageProfile = pd.merge(perks[['customer_id','age_segment']],
                  tran_summ,
                  how='inner',
                  on='customer_id')
