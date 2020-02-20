@@ -7,7 +7,7 @@ select
 	fst.customer_id  
 	,fst.store_currency_code
 	,case 
-		when onlinesale=0 then 'Store' 
+		when Onlinesale=0 then 'Store' 
 		when OnlineSale=1 then 'Online' 
 	end Channel
 	,case 
@@ -24,7 +24,7 @@ inner join  rpt.dbo.vwFactSaleTable as fst with (nolock) on fst.itemcoloursize_i
 group by 
 	fst.customer_id
 	,fst.store_currency_code
-	,case when onlinesale=0 then 'Store' when OnlineSale=1 then 'Online' end --channel
+	,case when Onlinesale=0 then 'Store' when OnlineSale=1 then 'Online' end --channel
 	,case when OnlineSale=0 then cast(transaction_date_time as date) when OnlineSale=1 then cast(OrderedDate as date) end -- trans_order_date
 	,DI.Division, DI.Department, DI.category
 	--, i.[Item Code], i.[Item Description], i.[Item Colour Description]
