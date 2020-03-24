@@ -147,8 +147,8 @@ def agePro_func(sql_conn):
     out_path = 'C:\\Users\\fletcher.herman\\Downloads\\Exports\\'
         
     # paths to SQL    
-    perks_path = 'C:\\Users\\fletcher.herman\\Documents\\PythonScripts\\scheduled_jobs\\PERKS.sql'
-    age_pro_path = 'C:\\Users\\fletcher.herman\\Documents\\PythonScripts\\scheduled_jobs\\AgeProfiling.sql'
+    perks_path = 'C:\\Users\\fletcher.herman\\Documents\\Analysis\\PythonScripts\\scheduled_jobs\\PERKS.sql'
+    age_pro_path = 'C:\\Users\\fletcher.herman\\Documents\\Analysis\\PythonScripts\\scheduled_jobs\\AgeProfiling.sql'
     
     # execute sql
     server = 'ctn-sqlhost01\core'

@@ -32,6 +32,5 @@ group by
 	--, i.[Item Code], i.[Item Description], i.[Item Colour Description]
 ) int
 inner join rms.dbo.DateDimension as dd with (nolock) on int.trans_order_date = dd.Date
-where (int.trans_order_date BETWEEN cast(CURRENT_TIMESTAMP - 8 as date) AND cast(CURRENT_TIMESTAMP - 1 as date))
+where (int.trans_order_date BETWEEN cast(CURRENT_TIMESTAMP - 7 as date) AND cast(CURRENT_TIMESTAMP - 1 as date))
 group by customer_id, sale_code, store_currency_code, Channel, TradeWeekCode, Division, Department, category, item
-
