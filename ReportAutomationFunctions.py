@@ -60,7 +60,28 @@ def ftp_client_connect_write(file_name, ftp_loc):
     ftp.storbinary('STOR ' + file_name, open(out_path+file_name, "rb"))
     ftp.quit()
     
-    print(file_name +" finished export to ftp") 
+    print(file_name +" finished export to ftp")
+
+
+def sftp_client_connect_write(file_name, ftp_loc):
+    """
+    connect to FTP client, change working directory, write file & close connection
+    @file_name: name of file (as will appear on server)
+    @ftp_loc: path to open tmp report from
+    
+    """
+    out_path = 'C:\\Users\\fletcher.herman\\Downloads\\Exports\\'
+
+    cnopts = pysftp.CnOpts()
+    cnopts.hostkeys = None   
+    srv = pysftp.Connection(host = "ftp.s7.exacttarget.com", username = "7220142", password = "j.4A3pM.e", cnopts=cnopts)
+    
+    with srv.cd('Import/SCV Upload/'+ftp_loc+'/'):
+        srv.put(out_path+file_name, file_name)
+
+    srv.close()
+    
+    print(file_name +" finished export to sftp")  
 
 def to_s3(bucket, folder, file_name, out_path, content):
     content.to_csv(out_path+file_name, index=False)
@@ -92,7 +113,7 @@ def scv_func(sql_conn, ftp_conn):
     tt = ((te-ts)/60)
     print(f"SCV file exported (mins): {tt:.2f}")
     
-    sub_cols = ['customer_id', 'Transacted_Cat_Curve', 'Transacted_Cat_Menswear', 'Transacted_Cat_Sports', 'Transacted_KIDS_flag']
+    sub_cols = ['customer_id', 'Transacted_Cat_Curve', 'Transacted_Cat_Menswear', 'Transacted_Cat_Sports', 'Transacted_KIDS_flag', 'Transacted_Cat_CoBrands', 'LIFESTAGE']
 
     def subset_file(raw_file, cid, sb):
         df = raw_file.loc[raw_file[sb] != 'null'][[cid, sb]].reset_index(drop = True)
@@ -102,6 +123,8 @@ def scv_func(sql_conn, ftp_conn):
     cat_menswear = subset_file(SCV, sub_cols[0], sub_cols[2])
     cat_sports = subset_file(SCV, sub_cols[0], sub_cols[3])
     cat_kids = subset_file(SCV, sub_cols[0], sub_cols[4])
+    cat_cobrands = subset_file(SCV, sub_cols[0], sub_cols[5])
+    cat_lifestage = subset_file(SCV, sub_cols[0], sub_cols[6])
 
     # date variable
     date_var = datetime.now().strftime("%d-%m-%Y")
@@ -111,7 +134,35 @@ def scv_func(sql_conn, ftp_conn):
     cat_menswear_file_name = 'cat_menswear' + '_' + date_var + '.csv'
     cat_sports_file_name = 'cat_sports' + '_' + date_var + '.csv'
     cat_kids_file_name = 'cat_kids' + '_' + date_var + '.csv'
+    cat_cobrands_file_name = 'cat_cobrands' + '_' + date_var + '.csv'
+    cat_lifestage_file_name = 'cat_lifestage' + '_' + date_var + '.csv'
 
+    def tmp_store(file, file_name):
+        file.to_csv(out_path+file_name,index=False)
+        print(file_name+' exported')
+
+    to_store = [(cat_curve, cat_curve_file_name),
+                (cat_menswear, cat_menswear_file_name),
+                (cat_sports, cat_sports_file_name),
+                (cat_kids, cat_kids_file_name),
+                (cat_cobrands, cat_cobrands_file_name),
+                (cat_lifestage, cat_lifestage_file_name),]  
+    
+    for fl, fl_nm in to_store:
+        tmp_store(fl, fl_nm) 
+
+    to_write = [(cat_curve_file_name, 'Transacted_Cat_Curve'),
+                (cat_menswear_file_name, 'Transacted_Cat_Menswear'), 
+                (cat_sports_file_name, 'Transacted_Cat_Sports'), 
+                (cat_kids_file_name, 'Transacted_kids'),
+                (cat_cobrands_file_name, 'Transacted_CoBrands'),
+                (cat_lifestage_file_name, 'Lifestage')]
+
+    for nm, loc in to_write:
+        sftp_conn(nm,loc)
+
+    print('job done')
+    print("--- %s seconds ---" % (time.time() - start_time))
     def tmp_store(file, file_name):
         file.to_csv(out_path+file_name,index=False)
         print(file_name+' exported')

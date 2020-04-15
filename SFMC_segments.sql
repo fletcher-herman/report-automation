@@ -22,7 +22,7 @@ IF OBJECT_ID('tempdb..#PERKS')  IS NOT NULL         BEGIN               DROP TAB
 			when datediff(year,cast([birth_date] as date),getdate())>=40 then 'Older Reach (40+)'
 			else 'Missing' end as age_segment
 
-		,datediff(year,cast([birth_date] as date),getdate()) as age
+		,isnull(datediff(year,cast([birth_date] as date),getdate()), 9999) as age
 		,[Store Type] AS signup_storetype
 		,Store_sign_up
 		, case when [Store Type]='INSTORE' then postcode else billing_post_code end as cust_postcode -- based on store sign up web-billing
@@ -47,10 +47,7 @@ IF OBJECT_ID('tempdb..#PERKS')  IS NOT NULL         BEGIN               DROP TAB
 			LEFT JOIN (select [Store Code],[Store Type] ,[Store Brand],[Store Description] from [RPT].[dbo].[vw_Dim_store] as S with (nolock) ) s_lkp ON S.Store_sign_up = s_lkp.[Store Code]  
 			LEFT JOIN (select location_code, postcode from [rms].[dbo].[location] with (nolock)) pcode_lkp  on s_lkp.[Store Code]  =pcode_lkp.location_code
 
-		
-
-
-
+SET ANSI_WARNINGS OFF
 SET NOCOUNT ON
 IF OBJECT_ID('tempdb..#transaction_summary')  IS NOT NULL         BEGIN               DROP TABLE #transaction_summary      END
 	Select  FST.customer_id
@@ -73,27 +70,46 @@ IF OBJECT_ID('tempdb..#transaction_summary')  IS NOT NULL         BEGIN         
 
 		
 		--KIDS FLAG
-		,max(case when division in ('2 - KIDS')   then 1 else 0 end) as trans_Kids
-		,max(case when division in ('2 - KIDS')   then 0 else 1 end) as trans_other_than_Kids
+		,max(case when division in ('2 - KIDS', '13 - SUNNY BUDDY (DNU)')   then 1 else 0 end) as trans_Kids
+		,max(case when division in ('2 - KIDS', '13 - SUNNY BUDDY (DNU)')   then 0 else 1 end) as trans_other_than_Kids
+
+		--CO-BRAND FLAG
+		,max(case when division in ('1 - COTTONON', '3 - BODY', '4 - RUBI', '12 - LOST (DNU)')   then 1 else 0 end) as trans_cobrands
+		,max(case when division in ('1 - COTTONON', '3 - BODY', '4 - RUBI', '12 - LOST (DNU)')   then 0 else 1 end) as trans_other_than_cobrands
 
 		--CHANNEL
 		,max(case when OnlineSale=1 then 1 else 0 end) as channel_online
 		,max(case when OnlineSale=0 then 1 else 0 end) as channel_store
 
 		--SALES
-		,Sum(AUDSales) as AUDSales
+		,Sum(case when AUDSales < 0 then 0 else AUDSales end) as AUDSales
 	
 
 	into #transaction_summary
     FROM [RPT].[dbo].[vwFactSaleTable] as fst  WITH (NOLOCK) 
-	 inner join [RPT].[dbo].[vw_Dim_Item] as i  WITH (NOLOCK)  
-	  ON fst.[itemcoloursize_id]=i.itemcoloursize_id    
-		 and cast(transaction_date_time as date)>=DATEADD(DAY,-365,getdate()) and fst.LoyaltyCustomerFlag=1
+	 inner join [RPT].[dbo].[vw_Dim_Item] as i  WITH (NOLOCK)  ON fst.[itemcoloursize_id]=i.itemcoloursize_id    
+		 and cast(transaction_date_time as date)>=DATEADD(DAY,-300,getdate()) and fst.LoyaltyCustomerFlag=1
+	GROUP by fst.customer_id -- 10 days: 7secs, 50 days: 2:53, 100 days: 3:26, 200 days: 4:37, 300 days 5:59 & 9:47, 360 days: 37 & 9:19
+
+SET ANSI_WARNINGS OFF
+SET NOCOUNT ON
+IF OBJECT_ID('tempdb..#transaction_kids_summary')  IS NOT NULL         BEGIN               DROP TABLE #transaction_kids_summary      END
+	Select  FST.customer_id
+	,Sum(case when AUDSales < 0 then 0 else AUDSales end) as kids_AUDSales
+	into #transaction_kids_summary
+    FROM [RPT].[dbo].[vwFactSaleTable] as fst  WITH (NOLOCK) 
+	 inner join [RPT].[dbo].[vw_Dim_Item] as i  WITH (NOLOCK)  ON fst.[itemcoloursize_id]=i.itemcoloursize_id    
+		 and cast(transaction_date_time as date)>=DATEADD(DAY,-300,getdate()) and fst.LoyaltyCustomerFlag=1
+		 and division in ('2 - KIDS', '13 - SUNNY BUDDY (DNU)')
 	GROUP by fst.customer_id
 
-	SET NOCOUNT ON
-	IF OBJECT_ID('tempdb..#AFL_NRLcampaigns')  IS NOT NULL         BEGIN               DROP TABLE #AFL_NRLcampaigns      END
-	SELECT *, case when CHARINDEX('_AFLNRL', upper([EmailName]))>0 then 1 else 0 end as afl_nrl
+--	select count(*) from #transaction_kids_summary
+--	select count(*) from #transaction_summary
+
+SET NOCOUNT ON
+IF OBJECT_ID('tempdb..#AFL_NRLcampaigns')  IS NOT NULL         BEGIN               DROP TABLE #AFL_NRLcampaigns      END
+SELECT 
+	*, case when CHARINDEX('_AFLNRL', upper([EmailName]))>0 then 1 else 0 end as afl_nrl
 	, case when CHARINDEX('_AFL', upper([EmailName]))>0 then 1 else 0 end as afl
 	, case when CHARINDEX('_NRL', upper([EmailName]))>0 then 1 else 0 end as nrl
 	into #AFL_NRLcampaigns
@@ -105,32 +121,51 @@ IF OBJECT_ID('tempdb..#transaction_summary')  IS NOT NULL         BEGIN         
 
 	 --SELECT * FROM #AFL_NRLcampaigns
 
-	  IF OBJECT_ID('tempdb..#opened')  IS NOT NULL         BEGIN               DROP TABLE #opened      END
-	 Select  subscriberKey, max(afl_nrl) as opened_afl_nrl
-								 , max(afl) as opened_afl
-								 , max(nrl) as opened_nrl
-	  into #opened
-	  from [RPT].[sfmc].[Opens] as o with (nolock)
-	 inner join #AFL_NRLcampaigns as cmp
-	 on o.sendid= cmp.SendID
-	 group by subscriberKey
-	 
-	 IF OBJECT_ID('tempdb..#clicked')  IS NOT NULL         BEGIN               DROP TABLE #clicked      END
-	 Select  subscriberKey, max(afl_nrl) as clicked_afl_nrl
-								 , max(afl) as clicked_afl
-								 , max(nrl) as clicked_nrl
-	  into #clicked
-	  from [RPT].[sfmc].[Clicks] as c with (nolock)
-	 inner join #AFL_NRLcampaigns as cmp
-	 on c.sendid= cmp.SendID
-	 group by subscriberKey
+
+SET NOCOUNT ON
+IF OBJECT_ID('tempdb..#opened')  IS NOT NULL         BEGIN               DROP TABLE #opened      END
+Select  subscriberKey, max(afl_nrl) as opened_afl_nrl
+					 , max(afl) as opened_afl
+					 , max(nrl) as opened_nrl
+into #opened
+from [RPT].[sfmc].[Opens] as o with (nolock)
+	 inner join #AFL_NRLcampaigns as cmp on o.sendid= cmp.SendID
+group by subscriberKey
+
+
+SET NOCOUNT ON	 
+IF OBJECT_ID('tempdb..#clicked')  IS NOT NULL         BEGIN               DROP TABLE #clicked      END
+Select  subscriberKey, max(afl_nrl) as clicked_afl_nrl
+					 , max(afl) as clicked_afl
+					 , max(nrl) as clicked_nrl
+into #clicked
+from [RPT].[sfmc].[Clicks] as c with (nolock)
+	 inner join #AFL_NRLcampaigns as cmp on c.sendid= cmp.SendID
+group by subscriberKey
+
 		 
 SET NOCOUNT ON		
 IF OBJECT_ID('tempdb..#SCV')  IS NOT NULL         BEGIN               DROP TABLE #SCV      END
-Select p.customer_id, Transacted_KIDS
+select customer_id, Transacted_KIDS,Transacted_Cat_Menswear,Transacted_KIDS_flag,Transacted_Cat_Sports,Transacted_Cat_Curve, Transacted_Cat_CoBrands,kids_AUDSales,AUDSales,age
+	,case  
+		when (kids_AUDSales/nullif(AUDSales,0)) >= .05 then 'PARENT' 
+		when (kids_AUDSales/nullif(AUDSales,0)) between .01 and 0.05 and age = 9999 then 'PARENT'
+
+		when (kids_AUDSales/nullif(AUDSales,0)) < 0.05 and age < 25 then 'EDIT'
+		
+		--when (kids_AUDSales/nullif(AUDSales,0)) between .01 and 0.05 and age >= 25 then 'GENERIC'
+		when (kids_AUDSales/nullif(AUDSales,0)) < 0.05 and age >= 25 then 'GENERIC'	
+		when (kids_AUDSales/nullif(AUDSales,0)) = 0.00 and age = 9999 then 'GENERIC'
+
+		else 'NO TRANS' end as LIFESTAGE
+into #SCV from (
+Select p.customer_id, age, Transacted_KIDS
 		,case when trans_mens=1 and  coalesce(trans_other_than_mens,0)=0 then 'Pure' 
 				when trans_mens=1 and coalesce(trans_other_than_mens,0)=1 then 'Multi' 
 				end as Transacted_Cat_Menswear
+		,case when trans_cobrands=1 and  coalesce(trans_other_than_cobrands,0)=0 then 'Pure' 
+				when trans_cobrands=1 and coalesce(trans_other_than_cobrands,0)=1 then 'Multi' 
+				end as Transacted_Cat_CoBrands
 		,case when trans_Kids=1 and  coalesce(trans_other_than_Kids,0)=0 then 'Pure' 
 				when trans_Kids=1 and coalesce(trans_other_than_Kids,0)=1 then 'Multi' 
 				end as Transacted_KIDS_flag
@@ -151,12 +186,26 @@ Select p.customer_id, Transacted_KIDS
 		,case when trans_curve=1 and  coalesce(trans_other_than_curve,0)=0 then 'Pure' 
 				when trans_curve=1 and coalesce(trans_other_than_curve,0)=1 then 'Multi' 
 				end as Transacted_Cat_Curve
-into #SCV
+		,cast(isnull(AUDSales, 0) as float) as AUDSales
+		,cast(isnull(kids_AUDSales, 0) as float) as kids_AUDSales
 from #PERKS as p
 left join #transaction_summary as t on p.customer_id=t.customer_id
+left join #transaction_kids_summary as tk on p.customer_id=tk.customer_id
  left join #opened as o on p.email_address=o.subscriberKey
  left join #clicked as c on p.email_address=c.subscriberKey
 where uq_cust_rank=1
+) aa
+where 
+	Transacted_KIDS is not null or 
+	Transacted_Cat_Menswear is not null or 
+	Transacted_KIDS_flag is not null or 
+	Transacted_Cat_Sports is not null or 
+	Transacted_Cat_Curve is not null or
+	Transacted_Cat_CoBrands is not null
+
+--select LIFESTAGE, count(*) from #SCV group by LIFESTAGE
+
+--select * from #SCV where LIFESTAGE = 'NO KIDS TRANS'
 
 
 --/*select count(*) as c, trans_AFL,trans_NRL
@@ -173,16 +222,29 @@ where uq_cust_rank=1
 
 
 
-SET NOCOUNT ON
 Select customer_id
 		,isnull(Transacted_KIDS,'') as Transacted_KIDS
 		,isnull(Transacted_Cat_Menswear,'') as Transacted_Cat_Menswear
 		,isnull(Transacted_KIDS_flag,'') as Transacted_KIDS_flag
 		,isnull(Transacted_Cat_Sports,'') as Transacted_Cat_Sports
 		,isnull(Transacted_Cat_Curve,'') as Transacted_Cat_Curve
- from #SCV
+		,isnull(Transacted_Cat_CoBrands,'') as Transacted_Cat_CoBrands
+		,LIFESTAGE
+from #SCV
 
+ ----------
+--full run
+ ----------
+ -- 100 days: 21 mins
+ -- 300 days: 18 mins
+ -- 360 days: 36 mins 
 
+--   SELECT Your_Column_Name
+ --   FROM Your_Table_Name
+  --  INTO OUTFILE 'Filename.csv'
+   -- FIELDS TERMINATED BY ','
+    --ENCLOSED BY '"'
+    --LINES TERMINATED BY '\n'
 
 		 
 
