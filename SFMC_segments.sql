@@ -53,6 +53,9 @@ IF OBJECT_ID('tempdb..#transaction_summary')  IS NOT NULL         BEGIN         
 	Select  FST.customer_id
 		--KIDS RECENCY
 		 ,max(case when division in ('2 - KIDS') then FORMAT((transaction_date_time), 'dd/MM/yyyy') end) as Transacted_KIDS	
+		--BABY FLAG
+		,max(case when Department in ('21 - BABY') then 1 else 0 end) as Transacted_BABY
+		,max(case when Department in ('21 - BABY')   then 0 else 1 end) as trans_other_than_BABY
 		-- MENS DEP
 		,max(case when (division in ('1 - COTTONON','5 - FACTORIE') and ((CHARINDEX('BOY', department)>0 or CHARINDEX('MENS', department)>0 or CHARINDEX('GUY', department)>0))) then 1 else 0 end) as trans_mens
 		,max(case when (division in ('1 - COTTONON','5 - FACTORIE') and ((CHARINDEX('BOY', department)>0 or CHARINDEX('MENS', department)>0 or CHARINDEX('GUY', department)>0))) then 0 else 1 end) as trans_other_than_mens
@@ -104,7 +107,7 @@ IF OBJECT_ID('tempdb..#transaction_kids_summary')  IS NOT NULL         BEGIN    
 	GROUP by fst.customer_id
 
 --	select count(*) from #transaction_kids_summary
---	select count(*) from #transaction_summary
+--	select top 100 * from #transaction_summary
 
 SET NOCOUNT ON
 IF OBJECT_ID('tempdb..#AFL_NRLcampaigns')  IS NOT NULL         BEGIN               DROP TABLE #AFL_NRLcampaigns      END
@@ -146,18 +149,16 @@ group by subscriberKey
 		 
 SET NOCOUNT ON		
 IF OBJECT_ID('tempdb..#SCV')  IS NOT NULL         BEGIN               DROP TABLE #SCV      END
-select customer_id, Transacted_KIDS,Transacted_Cat_Menswear,Transacted_KIDS_flag,Transacted_Cat_Sports,Transacted_Cat_Curve, Transacted_Cat_CoBrands,kids_AUDSales,AUDSales,age
+select customer_id, Transacted_KIDS,Transacted_BABY, Transacted_Cat_Menswear,Transacted_KIDS_flag,Transacted_Cat_Sports,Transacted_Cat_Curve, Transacted_Cat_CoBrands,kids_AUDSales,AUDSales,age
 	,case  
-		when (kids_AUDSales/nullif(AUDSales,0)) >= .05 then 'PARENT' 
+		when (kids_AUDSales/nullif(AUDSales,0)) >= .05 then 'PARENT'
 		when (kids_AUDSales/nullif(AUDSales,0)) between .01 and 0.05 and age = 9999 then 'PARENT'
-
 		when (kids_AUDSales/nullif(AUDSales,0)) < 0.05 and age < 25 then 'EDIT'
-		
-		--when (kids_AUDSales/nullif(AUDSales,0)) between .01 and 0.05 and age >= 25 then 'GENERIC'
-		when (kids_AUDSales/nullif(AUDSales,0)) < 0.05 and age >= 25 then 'GENERIC'	
 		when (kids_AUDSales/nullif(AUDSales,0)) = 0.00 and age = 9999 then 'GENERIC'
-
-		else 'NO TRANS' end as LIFESTAGE
+		when (kids_AUDSales/nullif(AUDSales,0)) < 0.05 and age >= 25 then 'GENERIC'
+		when age < 25 then 'EDIT'
+		when age = 9999 or age > 40 then 'GENERIC'
+	else 'GENERIC' end as LIFESTAGE
 into #SCV from (
 Select p.customer_id, age, Transacted_KIDS
 		,case when trans_mens=1 and  coalesce(trans_other_than_mens,0)=0 then 'Pure' 
@@ -166,6 +167,9 @@ Select p.customer_id, age, Transacted_KIDS
 		,case when trans_cobrands=1 and  coalesce(trans_other_than_cobrands,0)=0 then 'Pure' 
 				when trans_cobrands=1 and coalesce(trans_other_than_cobrands,0)=1 then 'Multi' 
 				end as Transacted_Cat_CoBrands
+		,case when Transacted_BABY=1 and  coalesce(trans_other_than_BABY,0)=0 then 'Pure' 
+				when Transacted_BABY=1 and coalesce(trans_other_than_BABY,0)=1 then 'Multi' 
+				end as Transacted_BABY 
 		,case when trans_Kids=1 and  coalesce(trans_other_than_Kids,0)=0 then 'Pure' 
 				when trans_Kids=1 and coalesce(trans_other_than_Kids,0)=1 then 'Multi' 
 				end as Transacted_KIDS_flag
@@ -197,11 +201,13 @@ where uq_cust_rank=1
 ) aa
 where 
 	Transacted_KIDS is not null or 
+	Transacted_BABY is not null or
 	Transacted_Cat_Menswear is not null or 
 	Transacted_KIDS_flag is not null or 
 	Transacted_Cat_Sports is not null or 
 	Transacted_Cat_Curve is not null or
 	Transacted_Cat_CoBrands is not null
+
 
 --select LIFESTAGE, count(*) from #SCV group by LIFESTAGE
 
@@ -224,6 +230,7 @@ where
 
 Select customer_id
 		,isnull(Transacted_KIDS,'') as Transacted_KIDS
+		,isnull(Transacted_BABY,'') as Transacted_BABY
 		,isnull(Transacted_Cat_Menswear,'') as Transacted_Cat_Menswear
 		,isnull(Transacted_KIDS_flag,'') as Transacted_KIDS_flag
 		,isnull(Transacted_Cat_Sports,'') as Transacted_Cat_Sports

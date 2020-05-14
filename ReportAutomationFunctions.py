@@ -113,7 +113,7 @@ def scv_func(sql_conn, ftp_conn):
     tt = ((te-ts)/60)
     print(f"SCV file exported (mins): {tt:.2f}")
     
-    sub_cols = ['customer_id', 'Transacted_Cat_Curve', 'Transacted_Cat_Menswear', 'Transacted_Cat_Sports', 'Transacted_KIDS_flag', 'Transacted_Cat_CoBrands', 'LIFESTAGE']
+    sub_cols = ['customer_id', 'Transacted_Cat_Curve', 'Transacted_Cat_Menswear', 'Transacted_Cat_Sports', 'Transacted_KIDS_flag', 'Transacted_Cat_CoBrands', 'LIFESTAGE','Transacted BABY']
 
     def subset_file(raw_file, cid, sb):
         df = raw_file.loc[raw_file[sb] != 'null'][[cid, sb]].reset_index(drop = True)
@@ -125,6 +125,7 @@ def scv_func(sql_conn, ftp_conn):
     cat_kids = subset_file(SCV, sub_cols[0], sub_cols[4])
     cat_cobrands = subset_file(SCV, sub_cols[0], sub_cols[5])
     cat_lifestage = subset_file(SCV, sub_cols[0], sub_cols[6])
+    cat_baby = subset_file(SCV, sub_cols[0], sub_cols[7])
 
     # date variable
     date_var = datetime.now().strftime("%d-%m-%Y")
@@ -136,6 +137,7 @@ def scv_func(sql_conn, ftp_conn):
     cat_kids_file_name = 'cat_kids' + '_' + date_var + '.csv'
     cat_cobrands_file_name = 'cat_cobrands' + '_' + date_var + '.csv'
     cat_lifestage_file_name = 'cat_lifestage' + '_' + date_var + '.csv'
+    cat_baby_file_name = 'cat_baby' + '_' + date_var + '.csv'
 
     def tmp_store(file, file_name):
         file.to_csv(out_path+file_name,index=False)
@@ -146,7 +148,8 @@ def scv_func(sql_conn, ftp_conn):
                 (cat_sports, cat_sports_file_name),
                 (cat_kids, cat_kids_file_name),
                 (cat_cobrands, cat_cobrands_file_name),
-                (cat_lifestage, cat_lifestage_file_name),]  
+                (cat_lifestage, cat_lifestage_file_name),
+                (cat_baby, cat_baby_file_name)]  
     
     for fl, fl_nm in to_store:
         tmp_store(fl, fl_nm) 
@@ -156,36 +159,16 @@ def scv_func(sql_conn, ftp_conn):
                 (cat_sports_file_name, 'Transacted_Cat_Sports'), 
                 (cat_kids_file_name, 'Transacted_kids'),
                 (cat_cobrands_file_name, 'Transacted_CoBrands'),
-                (cat_lifestage_file_name, 'Lifestage')]
+                (cat_lifestage_file_name, 'Lifestage'),
+                (cat_baby_file_name, 'Transacted_BABY')]
 
     for nm, loc in to_write:
         sftp_conn(nm,loc)
 
     print('job done')
     print("--- %s seconds ---" % (time.time() - start_time))
-    def tmp_store(file, file_name):
-        file.to_csv(out_path+file_name,index=False)
-        print(file_name+' exported')
 
-    to_store = [(cat_curve, cat_curve_file_name),
-                (cat_menswear, cat_menswear_file_name),
-                (cat_sports, cat_sports_file_name),
-                (cat_kids, cat_kids_file_name)] 
-    
-    for fl, fl_nm in to_store:
-        tmp_store(fl, fl_nm) 
-
-    to_write = [(cat_curve_file_name, 'Transacted_Cat_Curve'),
-                (cat_menswear_file_name, 'Transacted_Cat_Menswear'), 
-                (cat_sports_file_name, 'Transacted_Cat_Sports'), 
-                (cat_kids_file_name, 'Transacted_kids')]
-
-    for nm, loc in to_write:
-        ftp_conn(nm,loc)
-
-    print('job done')
-    print("--- %s seconds ---" % (time.time() - start_time))
-
+   
 def agePro_func(sql_conn):  
     """
     builds SCV report and writes to FTP
@@ -291,4 +274,5 @@ def ageProItem_func(sql_conn):
     file_name = 'ageProfilingItem' + '_' + date_var + '.csv'
 
     #write to s3
-    to_s3('cog-analytics', 'ageProfileItem', file_name, out_path, ageProfileItem_out)                
+    to_s3('cog-analytics', 'ageProfileItem', file_name, out_path, ageProfileItem_out)
+    print("=====================Age Profile Item Job DONE=====================")                
