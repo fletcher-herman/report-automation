@@ -3,6 +3,7 @@ Automating Reporting
 @author Fletcher Herman, 2020/Feb
 
 """
+import pysftp
 import ftplib
 import pyodbc
 import pandas as pd
