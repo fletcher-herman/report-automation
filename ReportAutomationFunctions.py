@@ -113,7 +113,7 @@ def scv_func(sql_conn, ftp_conn):
     tt = ((te-ts)/60)
     print(f"SCV file exported (mins): {tt:.2f}")
     
-    sub_cols = ['customer_id', 'Transacted_Cat_Curve', 'Transacted_Cat_Menswear', 'Transacted_Cat_Sports', 'Transacted_KIDS_flag', 'Transacted_Cat_CoBrands', 'LIFESTAGE','Transacted BABY']
+    sub_cols = ['customer_id', 'Transacted_Cat_Curve', 'Transacted_Cat_Menswear', 'Transacted_Cat_Sports', 'Transacted_KIDS_flag', 'Transacted_Cat_CoBrands', 'LIFESTAGE','Transacted_BABY']
 
     def subset_file(raw_file, cid, sb):
         df = raw_file.loc[raw_file[sb] != 'null'][[cid, sb]].reset_index(drop = True)
@@ -163,7 +163,7 @@ def scv_func(sql_conn, ftp_conn):
                 (cat_baby_file_name, 'Transacted_BABY')]
 
     for nm, loc in to_write:
-        sftp_conn(nm,loc)
+        ftp_conn(nm,loc)
 
     print('job done')
     print("--- %s seconds ---" % (time.time() - start_time))
