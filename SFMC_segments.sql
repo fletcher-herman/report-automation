@@ -91,7 +91,7 @@ IF OBJECT_ID('tempdb..#transaction_summary')  IS NOT NULL         BEGIN         
 	into #transaction_summary
     FROM [RPT].[dbo].[vwFactSaleTable] as fst  WITH (NOLOCK) 
 	 inner join [RPT].[dbo].[vw_Dim_Item] as i  WITH (NOLOCK)  ON fst.[itemcoloursize_id]=i.itemcoloursize_id    
-		 and cast(transaction_date_time as date)>=DATEADD(DAY,-300,getdate()) and fst.LoyaltyCustomerFlag=1
+		 and cast(transaction_date_time as date)>=DATEADD(DAY,-365,getdate()) and fst.LoyaltyCustomerFlag=1
 	GROUP by fst.customer_id -- 10 days: 7secs, 50 days: 2:53, 100 days: 3:26, 200 days: 4:37, 300 days 5:59 & 9:47, 360 days: 37 & 9:19
 
 SET ANSI_WARNINGS OFF
@@ -102,7 +102,7 @@ IF OBJECT_ID('tempdb..#transaction_kids_summary')  IS NOT NULL         BEGIN    
 	into #transaction_kids_summary
     FROM [RPT].[dbo].[vwFactSaleTable] as fst  WITH (NOLOCK) 
 	 inner join [RPT].[dbo].[vw_Dim_Item] as i  WITH (NOLOCK)  ON fst.[itemcoloursize_id]=i.itemcoloursize_id    
-		 and cast(transaction_date_time as date)>=DATEADD(DAY,-300,getdate()) and fst.LoyaltyCustomerFlag=1
+		 and cast(transaction_date_time as date)>=DATEADD(DAY,-365,getdate()) and fst.LoyaltyCustomerFlag=1
 		 and division in ('2 - KIDS', '13 - SUNNY BUDDY (DNU)')
 	GROUP by fst.customer_id
 
@@ -199,14 +199,7 @@ left join #transaction_kids_summary as tk on p.customer_id=tk.customer_id
  left join #clicked as c on p.email_address=c.subscriberKey
 where uq_cust_rank=1
 ) aa
-where 
-	Transacted_KIDS is not null or 
-	Transacted_BABY is not null or
-	Transacted_Cat_Menswear is not null or 
-	Transacted_KIDS_flag is not null or 
-	Transacted_Cat_Sports is not null or 
-	Transacted_Cat_Curve is not null or
-	Transacted_Cat_CoBrands is not null
+
 
 
 --select LIFESTAGE, count(*) from #SCV group by LIFESTAGE
