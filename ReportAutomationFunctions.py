@@ -120,13 +120,16 @@ def scv_func(sql_conn, ftp_conn):
         df = raw_file.loc[raw_file[sb] != 'null'][[cid, sb]].reset_index(drop = True)
         return(df)
 
-    cat_curve = subset_file(SCV, sub_cols[0], sub_cols[1])
-    cat_menswear = subset_file(SCV, sub_cols[0], sub_cols[2])
-    cat_sports = subset_file(SCV, sub_cols[0], sub_cols[3])
-    cat_kids = subset_file(SCV, sub_cols[0], sub_cols[4])
-    cat_cobrands = subset_file(SCV, sub_cols[0], sub_cols[5])
-    cat_lifestage = subset_file(SCV, sub_cols[0], sub_cols[6])
-    cat_baby = subset_file(SCV, sub_cols[0], sub_cols[7])
+    col_names = ('CustomerID', 'Segment')
+   
+    cat_curve = subset_file(SCV, sub_cols[0], sub_cols[1]).rename(columns={"customer_id":col_names[0],"Transacted_Cat_Curve":col_names[1]})
+    cat_menswear = subset_file(SCV, sub_cols[0], sub_cols[2]).rename(columns={"customer_id":col_names[0],"Transacted_Cat_Menswear":col_names[1]})
+    cat_sports = subset_file(SCV, sub_cols[0], sub_cols[3]).rename(columns={"customer_id":col_names[0],"Transacted_Cat_Sports":col_names[1]})
+    cat_kids = subset_file(SCV, sub_cols[0], sub_cols[4]).rename(columns={"customer_id":col_names[0],"Transacted_KIDS_flag":col_names[1]})
+    cat_cobrands = subset_file(SCV, sub_cols[0], sub_cols[5]).rename(columns={"customer_id":col_names[0],"Transacted_Cat_CoBrands":col_names[1]})
+    cat_lifestage = subset_file(SCV, sub_cols[0], sub_cols[6]).rename(columns={"customer_id":col_names[0],"LIFESTAGE":col_names[1]})
+    cat_baby = subset_file(SCV, sub_cols[0], sub_cols[7]).rename(columns={"customer_id":col_names[0],"Transacted_BABY":col_names[1]})
+
 
     # date variable
     date_var = datetime.now().strftime("%d-%m-%Y")

@@ -30,4 +30,5 @@ group by
 	--, i.[Item Code], i.[Item Description], i.[Item Colour Description]
 ) int
 where (int.trans_order_date BETWEEN cast(CURRENT_TIMESTAMP - 9 as date) AND cast(CURRENT_TIMESTAMP - 1 as date))
+--where (int.trans_order_date BETWEEN cast('2020-04-30' as date) AND cast('2020-05-26' as date))
 group by customer_id, store_currency_code, Channel, trans_order_date, Division, Department, category
