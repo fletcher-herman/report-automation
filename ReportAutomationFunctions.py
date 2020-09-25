@@ -117,7 +117,7 @@ def scv_func(sql_conn, ftp_conn):
     sub_cols = ['customer_id', 'Transacted_Cat_Curve', 'Transacted_Cat_Menswear', 'Transacted_Cat_Sports', 'Transacted_KIDS_flag', 'Transacted_Cat_CoBrands', 'LIFESTAGE','Transacted_BABY']
 
     def subset_file(raw_file, cid, sb):
-        df = raw_file.loc[raw_file[sb] != 'null'][[cid, sb]].reset_index(drop = True)
+        df = raw_file.loc[raw_file[sb] != ''][[cid, sb]].reset_index(drop = True)
         return(df)
 
     col_names = ('CustomerID', 'Segment')

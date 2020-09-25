@@ -44,5 +44,5 @@ SELECT lc.customer_id, date_from_f, date_to_f, insert_user, loyalty_code , gende
 			LEFT JOIN (select customer_id, birth_date, billing_post_code, gender , email_address from [RMS].[dbo].[customer]  (nolock)) c  ON lc.customer_id=c.customer_id 
 			LEFT JOIN (select [Customer ID],Store as Store_sign_up from [RPT].[dbo].[LoyaltyCustStores]  (nolock)) s  ON lc.customer_id=s.[Customer ID]  
 			LEFT JOIN (select [Store Code],[Store Type] ,[Store Brand],[Store Description] from [RPT].[dbo].[vw_Dim_store] as S with (nolock) ) s_lkp ON S.Store_sign_up = s_lkp.[Store Code]  
-			LEFT JOIN (select location_code, postcode from [rms].[dbo].[location] with (nolock)) pcode_lkp  on s_lkp.[Store Code]  =pcode_lkp.location_code
+			LEFT JOIN (select location_code, postcode from [rms].[dbo].[location] with (nolock)) pcode_lkp  on s_lkp.[Store Code]  = pcode_lkp.location_code
 ) int where uq_cust_rank = 1
