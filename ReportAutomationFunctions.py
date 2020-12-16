@@ -114,13 +114,14 @@ def scv_func(sql_conn, ftp_conn):
     tt = ((te-ts)/60)
     print(f"SCV file exported (mins): {tt:.2f}")
     
-    sub_cols = ['customer_id', 'Transacted_Cat_Curve', 'Transacted_Cat_Menswear', 'Transacted_Cat_Sports', 'Transacted_KIDS_flag', 'Transacted_Cat_CoBrands', 'LIFESTAGE','Transacted_BABY']
+    sub_cols = ['customer_id', 'Transacted_Cat_Curve', 'Transacted_Cat_Menswear', 'Transacted_Cat_Sports', 'Transacted_KIDS_flag', 'Transacted_Cat_CoBrands', 'LIFESTAGE','Transacted_BABY', 'Transacted_Cat_SUPRE', 'email_address']
+
 
     def subset_file(raw_file, cid, sb):
         df = raw_file.loc[raw_file[sb] != ''][[cid, sb]].reset_index(drop = True)
         return(df)
 
-    col_names = ('CustomerID', 'Segment')
+    col_names = ('customer_id', 'Segment')
    
     cat_curve = subset_file(SCV, sub_cols[0], sub_cols[1]).rename(columns={"customer_id":col_names[0],"Transacted_Cat_Curve":col_names[1]})
     cat_menswear = subset_file(SCV, sub_cols[0], sub_cols[2]).rename(columns={"customer_id":col_names[0],"Transacted_Cat_Menswear":col_names[1]})
@@ -129,7 +130,8 @@ def scv_func(sql_conn, ftp_conn):
     cat_cobrands = subset_file(SCV, sub_cols[0], sub_cols[5]).rename(columns={"customer_id":col_names[0],"Transacted_Cat_CoBrands":col_names[1]})
     cat_lifestage = subset_file(SCV, sub_cols[0], sub_cols[6]).rename(columns={"customer_id":col_names[0],"LIFESTAGE":col_names[1]})
     cat_baby = subset_file(SCV, sub_cols[0], sub_cols[7]).rename(columns={"customer_id":col_names[0],"Transacted_BABY":col_names[1]})
-
+    cat_supre = subset_file(SCV, sub_cols[0], sub_cols[8]).rename(columns={"customer_id":col_names[0],"Transacted_Cat_SUPRE":col_names[1]})
+    cat_supre = pd.merge(cat_supre, SCV[['customer_id', 'email_address']], on='customer_id', how='left')
 
     # date variable
     date_var = datetime.now().strftime("%d-%m-%Y")
@@ -142,6 +144,7 @@ def scv_func(sql_conn, ftp_conn):
     cat_cobrands_file_name = 'cat_cobrands' + '_' + date_var + '.csv'
     cat_lifestage_file_name = 'cat_lifestage' + '_' + date_var + '.csv'
     cat_baby_file_name = 'cat_baby' + '_' + date_var + '.csv'
+    cat_supre_file_name = 'cat_supre' + '_' + date_var + '.csv'
 
     def tmp_store(file, file_name):
         file.to_csv(out_path+file_name,index=False)
@@ -153,7 +156,8 @@ def scv_func(sql_conn, ftp_conn):
                 (cat_kids, cat_kids_file_name),
                 (cat_cobrands, cat_cobrands_file_name),
                 (cat_lifestage, cat_lifestage_file_name),
-                (cat_baby, cat_baby_file_name)]  
+                (cat_baby, cat_baby_file_name),
+                (cat_supre, cat_supre_file_name)]  
     
     for fl, fl_nm in to_store:
         tmp_store(fl, fl_nm) 
@@ -164,7 +168,8 @@ def scv_func(sql_conn, ftp_conn):
                 (cat_kids_file_name, 'Transacted_kids'),
                 (cat_cobrands_file_name, 'Transacted_CoBrands'),
                 (cat_lifestage_file_name, 'Lifestage'),
-                (cat_baby_file_name, 'Transacted_BABY')]
+                (cat_baby_file_name, 'Transacted_BABY'),
+                (cat_supre_file_name, 'Transacted_Cat_SUPRE')]
 
     for nm, loc in to_write:
         ftp_conn(nm,loc)

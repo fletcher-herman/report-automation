@@ -80,6 +80,10 @@ IF OBJECT_ID('tempdb..#transaction_summary')  IS NOT NULL         BEGIN         
 		,max(case when division in ('1 - COTTONON', '3 - BODY', '4 - RUBI', '12 - LOST (DNU)')   then 1 else 0 end) as trans_cobrands
 		,max(case when division in ('1 - COTTONON', '3 - BODY', '4 - RUBI', '12 - LOST (DNU)')   then 0 else 1 end) as trans_other_than_cobrands
 
+		--SUPRE FLAG
+		,max(case when division in ('10 - SUPRE')   then 1 else 0 end) as trans_supre
+		,max(case when division in ('10 - SUPRE')   then 0 else 1 end) as trans_other_than_supre
+
 		--CHANNEL
 		,max(case when OnlineSale=1 then 1 else 0 end) as channel_online
 		,max(case when OnlineSale=0 then 1 else 0 end) as channel_store
@@ -90,8 +94,10 @@ IF OBJECT_ID('tempdb..#transaction_summary')  IS NOT NULL         BEGIN         
 
 	into #transaction_summary
     FROM [RPT].[dbo].[vwFactSaleTable] as fst  WITH (NOLOCK) 
-	 inner join [RPT].[dbo].[vw_Dim_Item] as i  WITH (NOLOCK)  ON fst.[itemcoloursize_id]=i.itemcoloursize_id    
-		 and cast(transaction_date_time as date)>=DATEADD(DAY,-365,getdate()) and fst.LoyaltyCustomerFlag=1
+	 inner join [RPT].[dbo].[vw_Dim_Item] as i  WITH (NOLOCK)  ON fst.[itemcoloursize_id]=i.itemcoloursize_id and 
+	 (onlinesale=1 and cast(OrderedDate as date)>=DATEADD(DAY,-365,getdate()) or (onlinesale=0 and cast(transaction_date_time as date)>=DATEADD(DAY,-365,getdate())))     
+		 --and cast(transaction_date_time as date)>=DATEADD(DAY,-10,getdate()) 	 
+		 and fst.LoyaltyCustomerFlag=1
 	GROUP by fst.customer_id -- 10 days: 7secs, 50 days: 2:53, 100 days: 3:26, 200 days: 4:37, 300 days 5:59 & 9:47, 360 days: 37 & 9:19
 
 SET ANSI_WARNINGS OFF
@@ -149,7 +155,7 @@ group by subscriberKey
 		 
 SET NOCOUNT ON		
 IF OBJECT_ID('tempdb..#SCV')  IS NOT NULL         BEGIN               DROP TABLE #SCV      END
-select customer_id, Transacted_KIDS,Transacted_BABY, Transacted_Cat_Menswear,Transacted_KIDS_flag,Transacted_Cat_Sports,Transacted_Cat_Curve, Transacted_Cat_CoBrands,kids_AUDSales,AUDSales,age
+select customer_id, email_address, Transacted_KIDS,Transacted_BABY, Transacted_Cat_Menswear,Transacted_KIDS_flag,Transacted_Cat_Sports,Transacted_Cat_Curve, Transacted_Cat_CoBrands, Transacted_cat_SUPRE, kids_AUDSales,AUDSales,age
 	,case  
 		when (kids_AUDSales/nullif(AUDSales,0)) >= .05 then 'PARENT'
 		when (kids_AUDSales/nullif(AUDSales,0)) between .01 and 0.05 and age = 9999 then 'PARENT'
@@ -160,7 +166,7 @@ select customer_id, Transacted_KIDS,Transacted_BABY, Transacted_Cat_Menswear,Tra
 		when age = 9999 or age > 40 then 'GENERIC'
 	else 'GENERIC' end as LIFESTAGE
 into #SCV from (
-Select p.customer_id, age, Transacted_KIDS
+Select p.customer_id, email_address, age, Transacted_KIDS
 		,case when trans_mens=1 and  coalesce(trans_other_than_mens,0)=0 then 'Pure' 
 				when trans_mens=1 and coalesce(trans_other_than_mens,0)=1 then 'Multi' 
 				end as Transacted_Cat_Menswear
@@ -173,6 +179,10 @@ Select p.customer_id, age, Transacted_KIDS
 		,case when trans_Kids=1 and  coalesce(trans_other_than_Kids,0)=0 then 'Pure' 
 				when trans_Kids=1 and coalesce(trans_other_than_Kids,0)=1 then 'Multi' 
 				end as Transacted_KIDS_flag
+
+		,case when trans_supre=1 and  coalesce(trans_other_than_supre,0)=0 then 'Pure' 
+				when trans_supre=1 and coalesce(trans_other_than_supre,0)=1 then 'Multi' 
+				end as Transacted_cat_SUPRE
 		--,case when trans_AFL=1 and  coalesce(trans_NRL,0)=0  and coalesce(trans_other_than_AFL_NRL,0)=0 then 'AFL' 
 		--	  when trans_NRL=1 and  coalesce(trans_AFL,0)=0  and coalesce(trans_other_than_AFL_NRL,0)=0 then 'NRL' 
 		--		when (trans_AFL=1 or trans_NRL=1) and coalesce(trans_other_than_AFL_NRL,0)=1 then 'Multi' 
@@ -219,9 +229,10 @@ where uq_cust_rank=1
 --select count(*) ,Transacted_Cat_Sports from #SCV group by Transacted_Cat_Sports order by Transacted_Cat_Sports
 --select count(*) ,Transacted_Cat_Sports_original from #SCV group by Transacted_Cat_Sports_original
 
+--select top 100 * from #SCV
 
 
-Select customer_id
+Select customer_id, email_address
 		,isnull(Transacted_KIDS,'') as Transacted_KIDS
 		,isnull(Transacted_BABY,'') as Transacted_BABY
 		,isnull(Transacted_Cat_Menswear,'') as Transacted_Cat_Menswear
@@ -229,6 +240,7 @@ Select customer_id
 		,isnull(Transacted_Cat_Sports,'') as Transacted_Cat_Sports
 		,isnull(Transacted_Cat_Curve,'') as Transacted_Cat_Curve
 		,isnull(Transacted_Cat_CoBrands,'') as Transacted_Cat_CoBrands
+		,isnull(Transacted_cat_SUPRE,'') as Transacted_Cat_SUPRE
 		,LIFESTAGE
 from #SCV
 
