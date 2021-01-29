@@ -19,9 +19,9 @@ ageProItem_job = RPF.ageProItem_func
 
 scheduler = BlockingScheduler(timezone="Australia/Sydney")
 
-scheduler.add_job(lambda: scv_job(sql_conn, ftp_conn), 'cron', day_of_week='mon-sun', hour=17,minute=40)
-#scheduler.add_job(lambda: ageProItem_job(sql_conn), 'cron', day_of_week='mon-sun', hour=13,minute=45)
-#scheduler.add_job(lambda: agePro_job(sql_conn), 'cron', day_of_week='mon-sun', hour=14,minute=10)
+scheduler.add_job(lambda: scv_job(sql_conn, ftp_conn), 'cron', day_of_week='mon-sun', hour=13,minute=23)
+#scheduler.add_job(lambda: ageProItem_job(sql_conn), 'cron', day_of_week='mon-sun', hour=11,minute=55)
+#scheduler.add_job(lambda: agePro_job(sql_conn), 'cron', day_of_week='mon-sun', hour=16,minute=20)
 
 scheduler.start()
 

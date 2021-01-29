@@ -47,42 +47,63 @@ IF OBJECT_ID('tempdb..#PERKS')  IS NOT NULL         BEGIN               DROP TAB
 			LEFT JOIN (select [Store Code],[Store Type] ,[Store Brand],[Store Description] from [RPT].[dbo].[vw_Dim_store] as S with (nolock) ) s_lkp ON S.Store_sign_up = s_lkp.[Store Code]  
 			LEFT JOIN (select location_code, postcode from [rms].[dbo].[location] with (nolock)) pcode_lkp  on s_lkp.[Store Code]  =pcode_lkp.location_code
 
+SET NOCOUNT ON
+IF OBJECT_ID('tempdb..#top_bottom_lk')  IS NOT NULL         BEGIN               DROP TABLE #top_bottom_lk      END
+select * into  #top_bottom_lk	  from (
+select distinct Division, Department, Category, d.itemcoloursize_id, [Item Colour Code] as prod_id, Size, 1 as bottoms_14plus--, store_currency_code
+	,case 
+		when lower(Category) like '%bottoms%' then 'bottoms'
+		when lower(Category) like '%skirts%' then 'bottoms'
+		when lower(Category) like '%pants%' then 'bottoms'
+		when lower(Category) like '%denim%' then 'bottoms'
+		when lower(Category) like '%shorts%' then 'bottoms'
+	else '' end as tops_bottoms
+from rpt.dbo.vw_Dim_Item d
+--inner join [RPT].[dbo].[vwFactSaleTable] as fst  WITH (NOLOCK) on d.itemcoloursize_id=fst.itemcoloursize_id and transaction_date_code between '20210101' and '20210131'
+where Division in ('1 - COTTONON', '3 - BODY') 
+and Department in ('12 - LADIESWEAR', '31 - BODY SLEEPWEAR', '32 - BODY INTIMATES', '33 - BODY - ACTIVE'))aa
+where (tops_bottoms = 'bottoms') AND (Size LIKE ('%L%') OR Size IN ('14', '16'))
+
 SET ANSI_WARNINGS OFF
 SET NOCOUNT ON
 IF OBJECT_ID('tempdb..#transaction_summary')  IS NOT NULL         BEGIN               DROP TABLE #transaction_summary      END
 	Select  FST.customer_id
 		--KIDS RECENCY
-		 ,max(case when division in ('2 - KIDS') then FORMAT((transaction_date_time), 'dd/MM/yyyy') end) as Transacted_KIDS	
+		 ,max(case when i.division in ('2 - KIDS') then FORMAT((transaction_date_time), 'dd/MM/yyyy') end) as Transacted_KIDS	
 		--BABY FLAG
-		,max(case when Department in ('21 - BABY') then 1 else 0 end) as Transacted_BABY
-		,max(case when Department in ('21 - BABY')   then 0 else 1 end) as trans_other_than_BABY
+		,max(case when i.Department in ('21 - BABY') then 1 else 0 end) as Transacted_BABY
+		,max(case when i.Department in ('21 - BABY')   then 0 else 1 end) as trans_other_than_BABY
 		-- MENS DEP
-		,max(case when (division in ('1 - COTTONON','5 - FACTORIE') and ((CHARINDEX('BOY', department)>0 or CHARINDEX('MENS', department)>0 or CHARINDEX('GUY', department)>0))) then 1 else 0 end) as trans_mens
-		,max(case when (division in ('1 - COTTONON','5 - FACTORIE') and ((CHARINDEX('BOY', department)>0 or CHARINDEX('MENS', department)>0 or CHARINDEX('GUY', department)>0))) then 0 else 1 end) as trans_other_than_mens
-
+		,max(case when (i.division in ('1 - COTTONON','5 - FACTORIE') and ((CHARINDEX('BOY', i.department)>0 or CHARINDEX('MENS', i.department)>0 or CHARINDEX('GUY', i.department)>0))) then 1 else 0 end) as trans_mens
+		,max(case when (i.division in ('1 - COTTONON','5 - FACTORIE') and ((CHARINDEX('BOY', i.department)>0 or CHARINDEX('MENS', i.department)>0 or CHARINDEX('GUY', i.department)>0))) then 0 else 1 end) as trans_other_than_mens
 
 		--CURVE FLAG
-		,max(case when category='165 - CURVE'  then 1 else 0 end) as trans_curve
-		,max(case when category='165 - CURVE'  then 0 else 1 end) as trans_other_than_curve
+		,max(case when i.category='165 - CURVE'  then 1 else 0 end) as trans_curve
+		,max(case when i.category='165 - CURVE'  then 0 else 1 end) as trans_other_than_curve
 
+		--CURVE BOTTOMS 14+
+		,max(case when coalesce(bottoms_14plus,0)=1 then 1 else 0 end) as trans_curve_bottoms
+
+		-- Petite Flag
+		,max(case when ((i.Department = '12 - LADIESWEAR' AND i.category != '165 - CURVE') OR (i.Division = '3 - BODY' AND i.category NOT IN ('300 - SOLUTIONS', '399 - BODY OTHER')) AND i.Size IN ('XXS', 'XS', '6', '8')) then 1 else 0 end) as trans_petite
 	
 		--AFL & NRL combined FLAG
-		,max(case when (CHARINDEX('AFL ', [Item Description])>0 ) and  Division='11 - COMMUNITY'  then 1 else 0 end) as trans_AFL
-		,max(case when (CHARINDEX('NRL ', [Item Description])>0 ) and  Division='11 - COMMUNITY'  then 1 else 0 end) as trans_NRL
-		,max(case when (CHARINDEX('AFL ', [Item Description])>0 OR CHARINDEX('NRL ', [Item Description])>0 ) and  Division='11 - COMMUNITY'  then 0 else 1 end) as trans_other_than_AFL_NRL
+		,max(case when (CHARINDEX('AFL ', [Item Description])>0 ) and  i.Division='11 - COMMUNITY'  then 1 else 0 end) as trans_AFL
+		,max(case when (CHARINDEX('NRL ', [Item Description])>0 ) and  i.Division='11 - COMMUNITY'  then 1 else 0 end) as trans_NRL
+		,max(case when (CHARINDEX('AFL ', [Item Description])>0 OR CHARINDEX('NRL ', [Item Description])>0 ) and  i.Division='11 - COMMUNITY'  then 0 else 1 end) as trans_other_than_AFL_NRL
 
 		
 		--KIDS FLAG
-		,max(case when division in ('2 - KIDS', '13 - SUNNY BUDDY (DNU)')   then 1 else 0 end) as trans_Kids
-		,max(case when division in ('2 - KIDS', '13 - SUNNY BUDDY (DNU)')   then 0 else 1 end) as trans_other_than_Kids
+		,max(case when i.division in ('2 - KIDS', '13 - SUNNY BUDDY (DNU)')   then 1 else 0 end) as trans_Kids
+		,max(case when i.division in ('2 - KIDS', '13 - SUNNY BUDDY (DNU)')   then 0 else 1 end) as trans_other_than_Kids
 
 		--CO-BRAND FLAG
-		,max(case when division in ('1 - COTTONON', '3 - BODY', '4 - RUBI', '12 - LOST (DNU)')   then 1 else 0 end) as trans_cobrands
-		,max(case when division in ('1 - COTTONON', '3 - BODY', '4 - RUBI', '12 - LOST (DNU)')   then 0 else 1 end) as trans_other_than_cobrands
+		,max(case when i.division in ('1 - COTTONON', '3 - BODY', '4 - RUBI', '12 - LOST (DNU)')   then 1 else 0 end) as trans_cobrands
+		,max(case when i.division in ('1 - COTTONON', '3 - BODY', '4 - RUBI', '12 - LOST (DNU)')   then 0 else 1 end) as trans_other_than_cobrands
 
 		--SUPRE FLAG
-		,max(case when division in ('10 - SUPRE')   then 1 else 0 end) as trans_supre
-		,max(case when division in ('10 - SUPRE')   then 0 else 1 end) as trans_other_than_supre
+		,max(case when i.division in ('10 - SUPRE')   then 1 else 0 end) as trans_supre
+		,max(case when i.division in ('10 - SUPRE')   then 0 else 1 end) as trans_other_than_supre
 
 		--CHANNEL
 		,max(case when OnlineSale=1 then 1 else 0 end) as channel_online
@@ -90,14 +111,15 @@ IF OBJECT_ID('tempdb..#transaction_summary')  IS NOT NULL         BEGIN         
 
 		--SALES
 		,Sum(case when AUDSales < 0 then 0 else AUDSales end) as AUDSales
-	
+	 
 
 	into #transaction_summary
     FROM [RPT].[dbo].[vwFactSaleTable] as fst  WITH (NOLOCK) 
 	 inner join [RPT].[dbo].[vw_Dim_Item] as i  WITH (NOLOCK)  ON fst.[itemcoloursize_id]=i.itemcoloursize_id and 
-	 (onlinesale=1 and cast(OrderedDate as date)>=DATEADD(DAY,-365,getdate()) or (onlinesale=0 and cast(transaction_date_time as date)>=DATEADD(DAY,-365,getdate())))     
+	 (onlinesale=1 and cast(OrderedDate as date)>=DATEADD(DAY,-1,getdate()) or (onlinesale=0 and cast(transaction_date_time as date)>=DATEADD(DAY,-365,getdate())))     
 		 --and cast(transaction_date_time as date)>=DATEADD(DAY,-10,getdate()) 	 
 		 and fst.LoyaltyCustomerFlag=1
+	left join #top_bottom_lk lk on fst.itemcoloursize_id = lk.itemcoloursize_id
 	GROUP by fst.customer_id -- 10 days: 7secs, 50 days: 2:53, 100 days: 3:26, 200 days: 4:37, 300 days 5:59 & 9:47, 360 days: 37 & 9:19
 
 SET ANSI_WARNINGS OFF
@@ -155,7 +177,9 @@ group by subscriberKey
 		 
 SET NOCOUNT ON		
 IF OBJECT_ID('tempdb..#SCV')  IS NOT NULL         BEGIN               DROP TABLE #SCV      END
-select customer_id, email_address, Transacted_KIDS,Transacted_BABY, Transacted_Cat_Menswear,Transacted_KIDS_flag,Transacted_Cat_Sports,Transacted_Cat_Curve, Transacted_Cat_CoBrands, Transacted_cat_SUPRE, kids_AUDSales,AUDSales,age
+select 
+	customer_id, email_address, Transacted_KIDS,Transacted_BABY, Transacted_Cat_Menswear,Transacted_KIDS_flag,Transacted_Cat_Sports,Transacted_Cat_Curve, Transacted_Cat_CoBrands, 
+	Transacted_cat_SUPRE, kids_AUDSales, Transacted_Cat_Curve_Bottoms, Transacted_Cat_Petite, AUDSales, age
 	,case  
 		when (kids_AUDSales/nullif(AUDSales,0)) >= .05 then 'PARENT'
 		when (kids_AUDSales/nullif(AUDSales,0)) between .01 and 0.05 and age = 9999 then 'PARENT'
@@ -170,12 +194,15 @@ Select p.customer_id, email_address, age, Transacted_KIDS
 		,case when trans_mens=1 and  coalesce(trans_other_than_mens,0)=0 then 'Pure' 
 				when trans_mens=1 and coalesce(trans_other_than_mens,0)=1 then 'Multi' 
 				end as Transacted_Cat_Menswear
+		
 		,case when trans_cobrands=1 and  coalesce(trans_other_than_cobrands,0)=0 then 'Pure' 
 				when trans_cobrands=1 and coalesce(trans_other_than_cobrands,0)=1 then 'Multi' 
 				end as Transacted_Cat_CoBrands
+		
 		,case when Transacted_BABY=1 and  coalesce(trans_other_than_BABY,0)=0 then 'Pure' 
 				when Transacted_BABY=1 and coalesce(trans_other_than_BABY,0)=1 then 'Multi' 
 				end as Transacted_BABY 
+		
 		,case when trans_Kids=1 and  coalesce(trans_other_than_Kids,0)=0 then 'Pure' 
 				when trans_Kids=1 and coalesce(trans_other_than_Kids,0)=1 then 'Multi' 
 				end as Transacted_KIDS_flag
@@ -197,9 +224,19 @@ Select p.customer_id, email_address, age, Transacted_KIDS
 				when opened_afl=1 then 'AFL_em_o'
 				when opened_nrl=1 then 'NRL_em_o'
 				end as Transacted_Cat_Sports
+		
 		,case when trans_curve=1 and  coalesce(trans_other_than_curve,0)=0 then 'Pure' 
 				when trans_curve=1 and coalesce(trans_other_than_curve,0)=1 then 'Multi' 
 				end as Transacted_Cat_Curve
+
+		,case when trans_curve_bottoms=1 and  coalesce(trans_curve_bottoms,0)=0 then 'Pure' 
+				when trans_curve_bottoms=1 and coalesce(trans_curve_bottoms,0)=1 then 'Multi' 
+				end as Transacted_Cat_Curve_Bottoms
+
+		,case when trans_petite=1 and  coalesce(trans_petite,0)=0 then 'Pure' 
+				when trans_petite=1 and coalesce(trans_petite,0)=1 then 'Multi' 
+				end as Transacted_Cat_Petite
+		
 		,cast(isnull(AUDSales, 0) as float) as AUDSales
 		,cast(isnull(kids_AUDSales, 0) as float) as kids_AUDSales
 from #PERKS as p
@@ -214,7 +251,7 @@ where uq_cust_rank=1
 
 --select LIFESTAGE, count(*) from #SCV group by LIFESTAGE
 
---select * from #SCV where LIFESTAGE = 'NO KIDS TRANS'
+--select  * from #SCV where Transacted_Cat_Curve_Bottoms IS NOT NULL = 'NO KIDS TRANS'
 
 
 --/*select count(*) as c, trans_AFL,trans_NRL
@@ -241,6 +278,8 @@ Select customer_id, email_address
 		,isnull(Transacted_Cat_Curve,'') as Transacted_Cat_Curve
 		,isnull(Transacted_Cat_CoBrands,'') as Transacted_Cat_CoBrands
 		,isnull(Transacted_cat_SUPRE,'') as Transacted_Cat_SUPRE
+		,isnull(Transacted_Cat_Curve_Bottoms,'') as Transacted_Cat_Curve_Bottoms
+		,isnull(Transacted_Cat_Petite,'') as Transacted_Cat_Petite
 		,LIFESTAGE
 from #SCV
 

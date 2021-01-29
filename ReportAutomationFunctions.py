@@ -132,6 +132,8 @@ def scv_func(sql_conn, ftp_conn):
     cat_baby = subset_file(SCV, sub_cols[0], sub_cols[7]).rename(columns={"customer_id":col_names[0],"Transacted_BABY":col_names[1]})
     cat_supre = subset_file(SCV, sub_cols[0], sub_cols[8]).rename(columns={"customer_id":col_names[0],"Transacted_Cat_SUPRE":col_names[1]})
     cat_supre = pd.merge(cat_supre, SCV[['customer_id', 'email_address']], on='customer_id', how='left')
+    cat_curve_bottoms = subset_file(SCV, sub_cols[0], sub_cols[9]).rename(columns={"customer_id":col_names[0],"Transacted_Cat_Curve_Bottoms":col_names[1]})
+    cat_petite = subset_file(SCV, sub_cols[0], sub_cols[10]).rename(columns={"customer_id":col_names[0],"Transacted_Cat_Petite":col_names[1]})
 
     # date variable
     date_var = datetime.now().strftime("%d-%m-%Y")
@@ -145,6 +147,8 @@ def scv_func(sql_conn, ftp_conn):
     cat_lifestage_file_name = 'cat_lifestage' + '_' + date_var + '.csv'
     cat_baby_file_name = 'cat_baby' + '_' + date_var + '.csv'
     cat_supre_file_name = 'cat_supre' + '_' + date_var + '.csv'
+    cat_curve_bottoms_file_name = 'cat_curve_bottom' + '_' + date_var + '.csv'
+    cat_petite_file_name = 'cat_petite' + '_' + date_var + '.csv'
 
     def tmp_store(file, file_name):
         file.to_csv(out_path+file_name,index=False)
@@ -157,7 +161,9 @@ def scv_func(sql_conn, ftp_conn):
                 (cat_cobrands, cat_cobrands_file_name),
                 (cat_lifestage, cat_lifestage_file_name),
                 (cat_baby, cat_baby_file_name),
-                (cat_supre, cat_supre_file_name)]  
+                (cat_supre, cat_supre_file_name),
+                (cat_curve_bottoms, cat_curve_bottoms_file_name),
+                (cat_petite, cat_petite_file_name)]  
     
     for fl, fl_nm in to_store:
         tmp_store(fl, fl_nm) 
@@ -169,7 +175,9 @@ def scv_func(sql_conn, ftp_conn):
                 (cat_cobrands_file_name, 'Transacted_CoBrands'),
                 (cat_lifestage_file_name, 'Lifestage'),
                 (cat_baby_file_name, 'Transacted_BABY'),
-                (cat_supre_file_name, 'Transacted_Cat_SUPRE')]
+                (cat_supre_file_name, 'Transacted_Cat_SUPRE'),
+                (cat_curve_bottoms_file_name, 'Transacted_Cat_Curve_Bottoms'),
+                (cat_petite_file_name, 'Transacted_Cat_Petite')]
 
     for nm, loc in to_write:
         ftp_conn(nm,loc)
