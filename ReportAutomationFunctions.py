@@ -75,7 +75,7 @@ def sftp_client_connect_write(file_name, ftp_loc):
 
     cnopts = pysftp.CnOpts()
     cnopts.hostkeys = None   
-    srv = pysftp.Connection(host = "ftp.s7.exacttarget.com", username = "7220142", password = "j.4A3pM.e", cnopts=cnopts)
+    srv = pysftp.Connection(host = "ftp.s7.exacttarget.com", username = "7220142", password = "j.4A3pM.eGroUp!!", cnopts=cnopts)
     
     with srv.cd('Import/SCV Upload/'+ftp_loc+'/'):
         srv.put(out_path+file_name, file_name)
@@ -114,7 +114,10 @@ def scv_func(sql_conn, ftp_conn):
     tt = ((te-ts)/60)
     print(f"SCV file exported (mins): {tt:.2f}")
     
-    sub_cols = ['customer_id', 'Transacted_Cat_Curve', 'Transacted_Cat_Menswear', 'Transacted_Cat_Sports', 'Transacted_KIDS_flag', 'Transacted_Cat_CoBrands', 'LIFESTAGE','Transacted_BABY', 'Transacted_Cat_SUPRE', 'email_address']
+    sub_cols = ['customer_id', 'Transacted_Cat_Curve', 'Transacted_Cat_Menswear', 'Transacted_Cat_Sports', 'Transacted_KIDS_flag', 
+                'Transacted_Cat_CoBrands', 'LIFESTAGE','Transacted_BABY', 'Transacted_Cat_SUPRE', 'Transacted_Cat_Curve_Bottoms',
+                'Transacted_Cat_Petite', 'email_address']
+
 
 
     def subset_file(raw_file, cid, sb):

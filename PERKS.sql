@@ -2,7 +2,12 @@ set nocount on
 select *
 from
 (
-SELECT lc.customer_id, date_from_f, date_to_f, insert_user, loyalty_code , gender,email_address
+SELECT lc.customer_id, date_from_f, date_to_f, insert_user, loyalty_code 
+	,case 
+		when gender in ('m', 'M') then 'M'
+		when gender in ('f', 'F') then 'F'
+	else 'Missing' end as gender
+	,email_address
 		 ,case when [birth_date] is NULL then 'Missing'
 			when datediff(year,cast([birth_date] as date),getdate())<15 then '<=15'
 			when datediff(year,cast([birth_date] as date),getdate())<=20 then '16-20'
